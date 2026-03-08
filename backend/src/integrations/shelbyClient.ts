@@ -1,7 +1,6 @@
 import { Network } from "@aptos-labs/ts-sdk";
 import { ShelbyNodeClient } from "@shelby-protocol/sdk/node";
-import type { ShelbyClientConfig } from "@shelby-protocol/sdk/node";
-import { config } from "../config/env";
+import { config } from "../config/env.js";
 
 type ShelbyNetwork = Network.LOCAL | Network.TESTNET | Network.SHELBYNET;
 
@@ -14,20 +13,14 @@ function resolveNetwork(network: string): ShelbyNetwork {
   return map[network] ?? Network.TESTNET;
 }
 
-const shelbyConfig: ShelbyClientConfig = {
-  network: resolveNetwork(config.aptos.network),
-  apiKey: config.shelby.apiKey,
-};
-
 let _shelbyClient: ShelbyNodeClient | null = null;
 
 export function getShelbyClient(): ShelbyNodeClient {
   if (!_shelbyClient) {
-    _shelbyClient = new ShelbyNodeClient(shelbyConfig);
+    _shelbyClient = new ShelbyNodeClient({
+      network: resolveNetwork(config.aptos.network),
+      apiKey: config.shelby.apiKey,
+    });
   }
   return _shelbyClient;
-}
-
-export function getShelbyConfig(): ShelbyClientConfig {
-  return shelbyConfig;
 }

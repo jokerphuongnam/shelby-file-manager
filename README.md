@@ -59,6 +59,8 @@ SHELBY_API_KEY=your_api_key_here
 MAX_FILE_SIZE=52428800
 ```
 
+The backend does not store private keys. The Petra wallet address is sent with each request and used as the Shelby storage namespace.
+
 **Frontend** (`frontend/.env.local`):
 
 ```
@@ -74,9 +76,9 @@ Don't commit real API keys.
 
 1. User connects their Petra wallet
 2. User selects a file
-3. Frontend sends the file to the backend
-4. Backend uploads it to the Shelby network via the SDK
-5. File metadata is recorded on Aptos testnet
+3. Frontend sends the file and wallet address to the backend
+4. Backend stores the blob in the Shelby network under the wallet's address namespace
+5. Files can be listed and downloaded using the same wallet address
 
 ## Notes
 

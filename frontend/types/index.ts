@@ -18,9 +18,13 @@ export interface UploadResult {
 }
 
 export interface PrepareResult {
-  uploadId: string;
   blobName: string;
-  payload: unknown;
+  registerFunction: string;
+  blobMerkleRoot: string;
+  expirationMicros: string;
+  numChunksets: number;
+  blobSize: number;
+  encoding: number;
 }
 
 export interface FileStore {

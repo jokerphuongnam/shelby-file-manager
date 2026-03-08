@@ -4,7 +4,7 @@ FROM node:lts-alpine AS base
 WORKDIR /app
 
 FROM base AS deps
-COPY package*.json ./
+COPY package.json ./
 RUN npm install
 
 FROM deps AS dev
@@ -18,7 +18,7 @@ RUN npm run build
 FROM base AS production
 ENV NODE_ENV=production
 COPY --from=builder /app/dist ./dist
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+COPY package.json ./
+RUN npm install --omit=dev
 EXPOSE 3001
 CMD ["node", "dist/app.js"]

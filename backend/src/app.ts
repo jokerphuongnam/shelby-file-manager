@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
-import { config } from "./config/env";
-import fileRoutes from "./routes/fileRoutes";
-import { errorHandler } from "./middleware/errorHandler";
+import { config } from "./config/env.js";
+import fileRoutes from "./routes/fileRoutes.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 

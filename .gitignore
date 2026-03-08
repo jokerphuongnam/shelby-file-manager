@@ -44,6 +44,7 @@ coverage/
 *.seed
 *.pid.lock
 
-# Ignore alternative package manager lock files
+# Lock files
+package-lock.json
 yarn.lock
 pnpm-lock.yaml

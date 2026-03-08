@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import * as fileService from "../services/fileService";
+import * as fileService from "../services/fileService.js";
 
-export async function uploadFile(
+export async function prepareUpload(
   req: Request,
   res: Response,
   next: NextFunction
@@ -12,39 +12,39 @@ export async function uploadFile(
       return;
     }
 
-    const walletAddress = req.body.walletAddress as string;
-    if (!walletAddress) {
-      res.status(400).json({ success: false, error: "walletAddress is required." });
+    const accountAddress = req.body.accountAddress as string;
+    if (!accountAddress) {
+      res.status(400).json({ success: false, error: "Wallet not connected." });
       return;
     }
 
     const { originalname, buffer } = req.file;
-    const result = await fileService.prepareUpload(originalname, buffer, walletAddress);
+    const result = await fileService.prepareUpload(originalname, buffer, accountAddress);
 
-    res.status(200).json({
-      success: true,
-      data: { uploadId: result.uploadId, blobName: result.blobName, payload: result.payload },
-    });
+    res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);
   }
 }
 
-export async function confirmUpload(
+export async function commitUpload(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const { uploadId, walletAddress } = req.body as { uploadId: string; walletAddress: string };
+    const { blobName, accountAddress, txHash } = req.body as {
+      blobName: string;
+      accountAddress: string;
+      txHash: string;
+    };
 
-    if (!uploadId || !walletAddress) {
-      res.status(400).json({ success: false, error: "uploadId and walletAddress are required." });
+    if (!blobName || !accountAddress || !txHash) {
+      res.status(400).json({ success: false, error: "blobName, accountAddress, and txHash are required." });
       return;
     }
 
-    const result = await fileService.confirmUpload(uploadId, walletAddress);
-
+    const result = await fileService.commitUpload(blobName, accountAddress, txHash);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);

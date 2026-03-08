@@ -1,14 +1,11 @@
 import { AccountAddress } from "@aptos-labs/ts-sdk";
-import type { InputGenerateTransactionPayloadData } from "@aptos-labs/ts-sdk";
 import {
-  generateCommitments,
-  createDefaultErasureCodingProvider,
   ShelbyBlobClient,
-  ERASURE_CODE_PARAMS,
-  ErasureCodingScheme,
+  createDefaultErasureCodingProvider,
+  defaultErasureCodingConfig,
+  generateCommitments,
 } from "@shelby-protocol/sdk/node";
-import { getShelbyClient } from "../integrations/shelbyClient";
-import { randomUUID } from "crypto";
+import { getShelbyClient } from "../integrations/shelbyClient.js";
 
 export interface BlobInfo {
   name: string;
@@ -18,87 +15,77 @@ export interface BlobInfo {
 }
 
 export interface PrepareResult {
-  uploadId: string;
   blobName: string;
-  payload: InputGenerateTransactionPayloadData;
+  registerFunction: string;
+  blobMerkleRoot: string;
+  expirationMicros: string;
+  numChunksets: number;
+  blobSize: number;
+  encoding: number;
 }
 
-interface PendingUpload {
-  blobData: Uint8Array;
-  blobName: string;
-  expiresAt: number;
-}
-
-const pendingUploads = new Map<string, PendingUpload>();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, u] of pendingUploads) {
-    if (u.expiresAt < now) pendingUploads.delete(id);
-  }
-}, 60_000);
+const pendingUploads = new Map<string, Buffer>();
 
 export async function prepareUpload(
   fileName: string,
   buffer: Buffer,
   walletAddress: string
 ): Promise<PrepareResult> {
-  const blobName = `uploads/${Date.now()}-${fileName}`;
+  const blobName = `${walletAddress}/uploads/${Date.now()}-${fileName}`;
   const expirationMicros = (Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000;
 
   const provider = await createDefaultErasureCodingProvider();
   const commitments = await generateCommitments(provider, new Uint8Array(buffer));
-
-  const encoding =
-    ERASURE_CODE_PARAMS[ErasureCodingScheme.ClayCode_16Total_10Data_13Helper].enumIndex;
-
-  const account = AccountAddress.fromString(walletAddress);
+  const ecConfig = defaultErasureCodingConfig();
 
   const payload = ShelbyBlobClient.createRegisterBlobPayload({
-    account,
+    account: AccountAddress.from(walletAddress),
     blobName,
-    blobSize: buffer.length,
+    blobSize: commitments.raw_data_size,
     blobMerkleRoot: commitments.blob_merkle_root,
     expirationMicros,
     numChunksets: commitments.chunkset_commitments.length,
-    encoding,
+    encoding: ecConfig.enumIndex,
   });
 
-  const uploadId = randomUUID();
+  pendingUploads.set(blobName, buffer);
 
-  pendingUploads.set(uploadId, {
-    blobData: new Uint8Array(buffer),
+  return {
     blobName,
-    expiresAt: Date.now() + 5 * 60 * 1000,
-  });
-
-  return { uploadId, blobName, payload };
+    registerFunction: String((payload as { function: string }).function),
+    blobMerkleRoot: commitments.blob_merkle_root,
+    expirationMicros: String(expirationMicros),
+    numChunksets: commitments.chunkset_commitments.length,
+    blobSize: commitments.raw_data_size,
+    encoding: ecConfig.enumIndex,
+  };
 }
 
-export async function confirmUpload(
-  uploadId: string,
-  walletAddress: string
+export async function commitUpload(
+  blobName: string,
+  walletAddress: string,
+  txHash: string
 ): Promise<{ name: string }> {
-  const pending = pendingUploads.get(uploadId);
-  if (!pending) {
-    throw new Error("Upload session not found or expired.");
-  }
-  pendingUploads.delete(uploadId);
+  const buffer = pendingUploads.get(blobName);
+  if (!buffer) throw new Error("No pending upload found for this blob.");
 
   const client = getShelbyClient();
+  await client.coordination.aptos.waitForTransaction({ transactionHash: txHash });
+
   await client.rpc.putBlob({
-    account: AccountAddress.fromString(walletAddress),
-    blobName: pending.blobName,
-    blobData: pending.blobData,
+    account: AccountAddress.from(walletAddress),
+    blobData: new Uint8Array(buffer),
+    blobName,
   });
 
-  return { name: pending.blobName };
+  pendingUploads.delete(blobName);
+  return { name: blobName };
 }
 
 export async function listFiles(walletAddress: string): Promise<BlobInfo[]> {
   const client = getShelbyClient();
   const blobs = await client.coordination.getAccountBlobs({
-    account: AccountAddress.fromString(walletAddress),
+    account: AccountAddress.from(walletAddress),
   });
 
   return blobs.map((blob) => ({
@@ -115,7 +102,7 @@ export async function downloadFile(
   const client = getShelbyClient();
 
   const blob = await client.download({
-    account: AccountAddress.fromString(walletAddress),
+    account: AccountAddress.from(walletAddress),
     blobName,
   });
 

@@ -5,6 +5,7 @@ import { useDropzone } from "react-dropzone";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useFileStore } from "@/store/fileStore";
 import { useUpload } from "@/hooks/useUpload";
+import { useAptBalance } from "@/hooks/useAptBalance";
 import { useWalletHydration } from "@/components/WalletSessionProvider";
 
 function formatBytes(bytes: number): string {
@@ -18,6 +19,7 @@ export function UploadForm() {
   const { hydrated } = useWalletHydration();
   const { selectedFile, setSelectedFile, isUploading } = useFileStore();
   const { mutate: upload, isError, error, isSuccess, reset } = useUpload();
+  const { insufficient } = useAptBalance();
   const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => {
@@ -140,6 +142,22 @@ export function UploadForm() {
         )}
       </div>
 
+      {insufficient && (
+        <p className="mt-3 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+          Your wallet does not have enough APT to pay transaction gas fees.
+          Please fund your wallet using the{" "}
+          <a
+            href="https://aptos.dev/en/network/faucet"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-yellow-900"
+          >
+            Aptos testnet faucet
+          </a>
+          .
+        </p>
+      )}
+
       {isError && (
         <p className="mt-3 text-sm text-red-600">
           {error?.message ?? "Upload failed. Please try again."}
@@ -164,7 +182,7 @@ export function UploadForm() {
 
         <button
           onClick={handleUpload}
-          disabled={!selectedFile || isUploading}
+          disabled={!selectedFile || isUploading || !!insufficient}
           className="flex-1 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isUploading ? (

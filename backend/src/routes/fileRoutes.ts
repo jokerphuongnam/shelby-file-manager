@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { upload } from "../middleware/upload";
-import * as fileController from "../controllers/fileController";
+import { upload } from "../middleware/upload.js";
+import * as fileController from "../controllers/fileController.js";
 
 const router = Router();
 
-router.post("/upload", upload.single("file"), fileController.uploadFile);
-router.post("/confirm", fileController.confirmUpload);
+router.post("/upload/prepare", upload.single("file"), fileController.prepareUpload);
+router.post("/upload/commit", fileController.commitUpload);
 router.get("/files", fileController.listFiles);
 router.get("/file/:name", fileController.downloadFile);
 
